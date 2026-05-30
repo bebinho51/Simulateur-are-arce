@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulateur ARE frontalier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Typo : Bricolage Grotesque (titres, du caractère) + Hanken Grotesk (texte/chiffres, très lisible) -->
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#eef1f5;
+      --surface:#ffffff;
+      --surface-soft:#f7f9fc;
+      --line:#e2e8f0;
+      --line-strong:#cbd5e1;
+      --ink:#0f172a;
+      --ink-soft:#475569;
+      --ink-faint:#94a3b8;
+      --accent:#1d4ed8;
+      --accent-ink:#1e3a8a;
+      --accent-soft:#e8efff;
+      --good:#047857;
+      --good-soft:#e7f6ef;
+      --warn:#b45309;
+      --warn-soft:#fdf2dc;
+      --radius:20px;
+      --radius-sm:12px;
+      --shadow:0 1px 2px rgba(15,23,42,.04), 0 12px 32px rgba(15,23,42,.07);
+      --shadow-sm:0 1px 2px rgba(15,23,42,.05);
+    }
+    *{box-sizing:border-box;}
+    html{-webkit-text-size-adjust:100%;}
+    body{
+      margin:0;min-height:100vh;
+      background:
+        radial-gradient(1200px 400px at 80% -10%, rgba(29,78,216,.07), transparent 60%),
+        var(--bg);
+      font-family:'Hanken Grotesk', system-ui, sans-serif;
+      color:var(--ink);
+      font-feature-settings:"tnum" 1;
+      line-height:1.45;
+    }
+    .page{max-width:920px;margin:0 auto;padding:28px 16px 48px;}
+
+    /* ---------- En-tête ---------- */
+    header{margin-bottom:18px;}
+    .eyebrow{
+      display:inline-flex;align-items:center;gap:7px;
+      font-size:.72rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--accent-ink);background:var(--accent-soft);
+      padding:5px 11px;border-radius:999px;margin-bottom:12px;
+    }
+    h1{
+      font-family:'Bricolage Grotesque', sans-serif;
+      margin:0 0 6px;font-size:clamp(1.7rem,5vw,2.3rem);
+      font-weight:700;letter-spacing:-.02em;line-height:1.05;
+    }
+    .subtitle{margin:0;font-size:.95rem;color:var(--ink-soft);max-width:60ch;}
+
+    /* ---------- Carte ---------- */
+    .card{
+      background:var(--surface);border-radius:var(--radius);
+      border:1px solid var(--line);box-shadow:var(--shadow);
+      padding:22px;
+    }
+    @media (min-width:640px){.card{padding:28px;}}
+
+    /* ---------- Stepper ---------- */
+    .steps{display:flex;gap:10px;margin-bottom:22px;}
+    .step{
+      flex:1;display:flex;align-items:center;gap:9px;
+      padding:10px 12px;border-radius:var(--radius-sm);
+      border:1px solid var(--line);background:var(--surface-soft);
+      color:var(--ink-faint);font-size:.86rem;font-weight:500;
+      cursor:pointer;text-align:left;font-family:inherit;
+      transition:border-color .15s, background .15s, color .15s, box-shadow .15s;
+    }
+    .step:hover{border-color:var(--line-strong);background:#fff;}
+    .step:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-soft);}
+    .step-dot{
+      width:24px;height:24px;flex:0 0 24px;border-radius:999px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:.8rem;font-weight:700;
+      border:1.5px solid var(--line-strong);background:var(--surface);color:var(--ink-faint);
+    }
+    .step[aria-current="step"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink);}
+    .step[aria-current="step"] .step-dot{border-color:var(--accent);background:var(--accent);color:#fff;}
+    .step.done .step-dot{background:var(--good);border-color:var(--good);color:#fff;}
+
+    /* ---------- Sections ---------- */
+    .kicker{
+      font-size:.74rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+      color:var(--ink-faint);margin:0 0 4px;
+    }
+    .section-title{font-family:'Bricolage Grotesque',sans-serif;font-size:1.15rem;font-weight:600;margin:0 0 4px;letter-spacing:-.01em;}
+    .section-caption{font-size:.88rem;color:var(--ink-soft);margin:0 0 14px;}
+    .block{margin-top:26px;}
+    .block:first-of-type{margin-top:0;}
+
+    /* En-tête de section avec numéro */
+    .sec-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;}
+    .num-badge{
+      flex:0 0 30px;width:30px;height:30px;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;
+      background:var(--accent-soft);color:var(--accent-ink);
+      font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:.95rem;
+      margin-top:2px;
+    }
+    .sec-head .kicker{margin:0 0 2px;}
+    .sec-head .section-title{margin:0 0 3px;}
+    .sec-head .section-caption{margin:0;}
+
+    /* En-tête de la zone mois */
+    .months-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:2px 0 6px;}
+    .count-chip{
+      display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;
+      color:var(--ink-soft);background:var(--surface-soft);border:1px solid var(--line);
+      padding:5px 11px;border-radius:999px;
+    }
+    .legend{display:flex;gap:14px;font-size:.75rem;color:var(--ink-faint);font-weight:500;}
+    .legend .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:middle;}
+    .legend .dot.real{background:var(--accent);}
+    .legend .dot.proj{background:#d6a85f;}
+
+    /* Bandeau récap en direct */
+    .summary-strip{
+      display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:12px;
+      background:var(--line);border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden;
+    }
+    .summary-strip .stat{background:var(--surface);padding:12px 10px;text-align:center;}
+    .summary-strip .stat .s-val{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:1.05rem;color:var(--ink);letter-spacing:-.01em;}
+    .summary-strip .stat .s-lab{font-size:.72rem;color:var(--ink-faint);font-weight:600;margin-top:2px;}
+
+    /* ---------- Champs ---------- */
+    .grid-2{display:grid;grid-template-columns:1fr;gap:14px;}
+    @media (min-width:640px){.grid-2{grid-template-columns:1fr 1fr;}}
+    .field label{display:block;font-size:.88rem;font-weight:600;margin-bottom:6px;color:var(--ink);}
+    .field-help{font-size:.78rem;color:var(--ink-soft);margin-top:6px;line-height:1.4;}
+    input[type="number"], input[type="date"]{
+      width:100%;border-radius:var(--radius-sm);
+      border:1.5px solid var(--line-strong);
+      padding:12px 13px;font-size:1rem;font-family:inherit;font-weight:500;
+      background:var(--surface-soft);color:var(--ink);
+      -webkit-appearance:none;appearance:none;
+      transition:border-color .15s, box-shadow .15s, background .15s;
+      min-height:48px;
+    }
+    input:focus-visible{
+      outline:none;border-color:var(--accent);
+      box-shadow:0 0 0 3px var(--accent-soft);background:#fff;
+    }
+
+    /* ---------- Mois ---------- */
+    .months-shell{
+      border-radius:var(--radius-sm);border:1px solid var(--line);
+      background:var(--surface-soft);padding:10px;margin-top:6px;
+      max-height:330px;overflow:auto;
+    }
+    .month-grid{display:grid;grid-template-columns:1fr;gap:8px;}
+    @media (min-width:560px){.month-grid{grid-template-columns:1fr 1fr;}}
+    .month-row{
+      display:flex;flex-direction:column;gap:7px;
+      background:var(--surface);border-radius:10px;border:1px solid var(--line);
+      padding:9px 10px;
+    }
+    .month-row .m-label{color:var(--ink-soft);font-size:.8rem;font-weight:700;}
+    .month-row.future{border-left:3px solid #e3b877;background:#fffaf1;}
+    .month-row.future .m-label{color:#9a6a1c;}
+    .m-inputs{display:flex;gap:7px;}
+    .m-cell{flex:1;display:flex;align-items:center;gap:5px;}
+    .m-cell input{width:100%;padding:9px 8px;min-height:42px;font-size:.9rem;text-align:right;}
+    .m-cell .u{font-size:.7rem;color:var(--ink-faint);font-weight:700;white-space:nowrap;}
+    .btn-mini{
+      font-size:.76rem;font-weight:600;padding:7px 12px;min-height:auto;
+      border-radius:999px;background:var(--surface);color:var(--accent-ink);
+      border:1px solid var(--line-strong);
+    }
+    .btn-mini:hover{background:var(--accent-soft);border-color:var(--accent);}
+
+    /* ---------- details / options avancées ---------- */
+    details.adv{
+      margin-top:22px;border:1px solid var(--line);border-radius:var(--radius-sm);
+      background:var(--surface-soft);overflow:hidden;
+    }
+    details.adv > summary{
+      cursor:pointer;list-style:none;padding:14px 16px;
+      font-weight:600;font-size:.92rem;color:var(--ink);
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+    }
+    details.adv > summary::-webkit-details-marker{display:none;}
+    details.adv > summary .chev{transition:transform .2s;color:var(--ink-faint);font-size:1.1rem;}
+    details.adv[open] > summary .chev{transform:rotate(180deg);}
+    details.adv > summary .sum-sub{font-size:.78rem;color:var(--ink-faint);font-weight:500;}
+    .adv-body{padding:4px 16px 18px;}
+    .adv-note{font-size:.78rem;color:var(--ink-soft);background:var(--warn-soft);border-radius:10px;padding:10px 12px;margin-bottom:14px;border:1px solid #f3dca6;}
+
+    .switch-row{display:flex;align-items:center;gap:12px;padding:6px 0 2px;}
+    .switch-row label{font-size:.9rem;font-weight:600;cursor:pointer;}
+    input[type="checkbox"]{width:22px;height:22px;accent-color:var(--accent);cursor:pointer;flex:0 0 auto;}
+
+    /* ---------- Boutons ---------- */
+    .actions{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;}
+    .actions.end{justify-content:flex-end;}
+    button{
+      font-family:inherit;font-size:.95rem;font-weight:600;
+      border-radius:999px;border:1.5px solid transparent;
+      padding:13px 22px;cursor:pointer;min-height:50px;
+      transition:transform .08s, background .15s, box-shadow .15s;
+    }
+    button:active{transform:translateY(1px);}
+    .btn-primary{background:var(--accent);color:#fff;box-shadow:0 6px 16px rgba(29,78,216,.28);flex:1;min-width:160px;}
+    .btn-primary:hover{background:#1741b6;}
+    .btn-secondary{background:var(--surface);color:var(--ink-soft);border-color:var(--line-strong);}
+    .btn-secondary:hover{background:var(--surface-soft);border-color:var(--ink-faint);}
+    button:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-soft);}
+
+    /* ---------- Résultats ---------- */
+    .kpi-stack{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:8px;}
+    @media (min-width:640px){.kpi-stack{grid-template-columns:1fr 1fr;}}
+    .kpi{
+      border-radius:var(--radius-sm);border:1px solid var(--line);
+      background:var(--surface-soft);padding:16px;position:relative;
+    }
+    .kpi.hero{grid-column:1/-1;background:linear-gradient(180deg,#fff,var(--accent-soft));border-color:#cdddff;}
+    .kpi.net{background:var(--good-soft);border-color:#bfe6d3;}
+    .kpi-label{font-size:.8rem;color:var(--ink-soft);font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+    .kpi-value{font-family:'Bricolage Grotesque',sans-serif;font-size:1.9rem;font-weight:700;letter-spacing:-.02em;line-height:1;}
+    .kpi.hero .kpi-value{font-size:2.3rem;color:var(--accent-ink);}
+    .kpi.net .kpi-value{color:var(--good);}
+    .kpi-sub{font-size:.82rem;color:var(--ink-soft);margin-top:8px;line-height:1.4;}
+
+    .badge{
+      display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;
+      padding:3px 9px;border-radius:999px;letter-spacing:.02em;
+    }
+    .badge.blue{background:var(--accent-soft);color:var(--accent-ink);}
+    .badge.warn{background:var(--warn-soft);color:var(--warn);}
+
+    .callout{
+      margin-top:14px;border-radius:var(--radius-sm);padding:13px 15px;
+      font-size:.85rem;line-height:1.5;display:flex;gap:11px;align-items:flex-start;
+    }
+    .callout.warn{background:var(--warn-soft);border:1px solid #f3dca6;color:#7c4a08;}
+    .callout .ico{flex:0 0 auto;font-size:1.05rem;line-height:1.4;}
+
+    /* ---------- Détails repliables ---------- */
+    details.detail{margin-top:16px;border-top:1px solid var(--line);}
+    details.detail > summary{
+      cursor:pointer;list-style:none;padding:14px 0 12px;font-weight:600;font-size:.92rem;
+      display:flex;align-items:center;justify-content:space-between;
+    }
+    details.detail > summary::-webkit-details-marker{display:none;}
+    details.detail > summary .chev{transition:transform .2s;color:var(--ink-faint);}
+    details.detail[open] > summary .chev{transform:rotate(180deg);}
+    table{width:100%;border-collapse:collapse;font-size:.84rem;}
+    th,td{text-align:left;padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:top;}
+    th{color:var(--ink-faint);font-weight:600;width:42%;}
+    td{color:var(--ink);font-weight:500;}
+    .mono{font-variant-numeric:tabular-nums;}
+
+    .legal{
+      margin-top:18px;font-size:.78rem;color:var(--ink-soft);line-height:1.5;
+      border-top:1px dashed var(--line-strong);padding-top:14px;
+    }
+    .legal strong{color:var(--ink);}
+    .pill{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent-ink);font-weight:700;font-size:.76rem;}
+
+    .hidden{display:none !important;}
+    .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <span class="eyebrow">🇨🇭 → 🇫🇷 Frontalier · indemnisation France Travail</span>
+      <h1>Simulateur ARE frontalier</h1>
+      <p class="subtitle">Estime ton allocation chômage à partir de tes salaires suisses bruts. <strong>Étape 1</strong> : tes paramètres et tes 24 mois · <strong>Étape 2</strong> : SJR, allocation journalière et projection nette mensuelle.</p>
+    </header>
+
+    <section class="card">
+      <div class="steps" role="list">
+        <button class="step" id="step1Label" type="button" role="listitem" aria-current="step"><span class="step-dot">1</span><span>Saisie</span></button>
+        <button class="step" id="step2Label" type="button" role="listitem"><span class="step-dot">2</span><span>Résultats</span></button>
+        <button class="step" id="step3Label" type="button" role="listitem"><span class="step-dot">3</span><span>ARCE</span></button>
+      </div>
+
+      <!-- ================= ÉTAPE 1 ================= -->
+      <div id="step1">
+        <div class="block">
+          <div class="sec-head">
+            <span class="num-badge">1</span>
+            <div>
+              <p class="kicker">Paramètres de base</p>
+              <h2 class="section-title">Change &amp; période</h2>
+              <p class="section-caption">Ces réglages pilotent tout le calcul. Les valeurs par défaut correspondent à ta situation Protectas.</p>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="fx">Taux de change CHF → EUR (secours)</label>
+              <input id="fx" type="number" step="0.0001" inputmode="decimal" value="1.0930">
+              <p class="field-help">Chaque mois est déjà prérempli avec le <strong>taux réel BCE (moyenne mensuelle)</strong>. Ce champ + le bouton « appliquer à tous » servent seulement si tu veux forcer un taux unique partout.</p>
+            </div>
+            <div class="field">
+              <label for="daysWorked">Jours calendaires de la période de référence</label>
+              <input id="daysWorked" type="number" step="1" inputmode="numeric" value="731">
+              <p class="field-help">Nombre de jours entre le 1er jour du 1er contrat et le dernier jour du dernier contrat (≈ 731 sur 24 mois).</p>
+            </div>
+          </div>
+
+          <div class="grid-2" style="margin-top:14px;">
+            <div class="field">
+              <label for="socialRate">CSG + CRDS sur l'ARE (%)</label>
+              <input id="socialRate" type="number" step="0.01" inputmode="decimal" value="6.7">
+              <p class="field-help">CSG 6,2 % + CRDS 0,5 % = 6,7 % (sur 98,25 % de l'ARE). Une retraite complémentaire de <strong>3 % du SJR</strong> est déduite en plus, automatiquement. Taux réduit/exonéré possible selon ton revenu fiscal.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="sec-head">
+            <span class="num-badge">2</span>
+            <div>
+              <p class="kicker">Revenus</p>
+              <h2 class="section-title">Salaires bruts mensuels (CHF)</h2>
+              <p class="section-caption">Préremplis avec tes bruts Protectas : janv.–déc. 2025, janv.–avr. 2026, puis 4 758 CHF par défaut pour mai–déc. 2026 (modifiables).</p>
+            </div>
+          </div>
+
+          <div class="months-top">
+            <span class="count-chip">📅 <span id="monthCount">24</span> mois pris en compte</span>
+            <button class="btn-mini" id="applyFxBtn" type="button">↻ Appliquer le taux par défaut à tous</button>
+          </div>
+          <p class="section-caption" style="margin:0 0 8px;font-size:.8rem;">Pour chaque mois : <strong>salaire brut (CHF)</strong> et <strong>taux de change du mois (€/CHF)</strong>. <span style="color:#9a6a1c;">●</span> mois projetés (mai 2026+).</p>
+
+          <div class="months-shell">
+            <div class="month-grid" id="months"></div>
+          </div>
+
+          <div class="summary-strip" aria-live="polite">
+            <div class="stat"><div class="s-val" id="sumTotal">—</div><div class="s-lab">Total brut</div></div>
+            <div class="stat"><div class="s-val" id="sumAvg">—</div><div class="s-lab">Moyenne / mois</div></div>
+            <div class="stat"><div class="s-val" id="sumEur">—</div><div class="s-lab">≈ en euros</div></div>
+          </div>
+        </div>
+
+        <!-- Options avancées : différés + dégressivité -->
+        <details class="adv" id="advBlock">
+          <summary>
+            <span>⚙️ Options avancées <span class="sum-sub">— différés, carence, dégressivité (facultatif)</span></span>
+            <span class="chev">⌄</span>
+          </summary>
+          <div class="adv-body">
+            <p class="adv-note">⚠️ Ces règles décalent ou réduisent l'indemnisation. Laisse à 0 / décoché si tu ne sais pas — le calcul de base reste valable.</p>
+
+            <div class="grid-2">
+              <div class="field">
+                <label for="endDate">Date de fin de contrat</label>
+                <input id="endDate" type="date">
+                <p class="field-help">Sert à estimer la date du 1er versement après les différés.</p>
+              </div>
+              <div class="field">
+                <label for="iccp">Indemnité de congés payés non pris (CHF)</label>
+                <input id="iccp" type="number" step="0.01" inputmode="decimal" value="0">
+                <p class="field-help">Génère un « différé congés payés » = montant ÷ SJR.</p>
+              </div>
+            </div>
+
+            <div class="grid-2" style="margin-top:14px;">
+              <div class="field">
+                <label for="supra">Indemnités de rupture supra-légales (CHF)</label>
+                <input id="supra" type="number" step="0.01" inputmode="decimal" value="0">
+                <p class="field-help">Part au-dessus du minimum légal (rupture conv., transaction…). Différé spécifique = montant ÷ <strong>111,8</strong> (diviseur 2026, à confirmer), plafonné à 150 j.</p>
+              </div>
+              <div class="field">
+                <label for="age">Âge à la fin de contrat</label>
+                <input id="age" type="number" step="1" inputmode="numeric" value="40">
+                <p class="field-help">La dégressivité ne concerne que les <strong>moins de 55 ans</strong> dont le <strong>SJR dépasse 162,40 €/j</strong> (≈ 4 940 €/mois).</p>
+              </div>
+            </div>
+
+            <div class="switch-row">
+              <input type="checkbox" id="degToggle">
+              <label for="degToggle">Simuler la dégressivité (–30 %) à partir du 7ᵉ mois</label>
+            </div>
+          </div>
+        </details>
+
+        <div class="actions">
+          <button class="btn-secondary" id="resetBtn" type="button">↺ Bruts Protectas</button>
+          <button class="btn-primary" id="toStep2" type="button">Calculer mon ARE →</button>
+        </div>
+      </div>
+
+      <!-- ================= ÉTAPE 2 ================= -->
+      <div id="step2" class="hidden">
+        <div class="block">
+          <p class="kicker">Résultats indicatifs</p>
+          <h2 class="section-title">Ton estimation</h2>
+          <p class="section-caption">Indemnisation mensualisée sur <span class="pill">30 jours</span> (règle depuis le 1<sup>er</sup> avril 2025, tous mois confondus).</p>
+
+          <div class="kpi-stack" aria-live="polite">
+            <div class="kpi hero">
+              <div class="kpi-label">💶 Net mensuel estimé</div>
+              <div class="kpi-value" id="monthlyNetVal">—</div>
+              <div class="kpi-sub" id="monthlyDetailVal">Net journalier × 30 jours.</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Salaire journalier de référence</div>
+              <div class="kpi-value" id="sjrVal">—</div>
+              <div class="kpi-sub" id="refSalaryVal">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Allocation journalière brute</div>
+              <div class="kpi-value" id="dailyGrossVal">—</div>
+              <div class="kpi-sub" id="formulaVal">—</div>
+            </div>
+          </div>
+
+          <div class="callout warn hidden" id="degCallout">
+            <span class="ico">📉</span>
+            <span id="degText"></span>
+          </div>
+          <div class="callout warn hidden" id="defCallout">
+            <span class="ico">⏳</span>
+            <span id="defText"></span>
+          </div>
+
+          <details class="detail" id="detailBlock">
+            <summary><span>Voir le détail du calcul</span><span class="chev">⌄</span></summary>
+            <table>
+              <tbody>
+                <tr><th>Conversion CHF → EUR</th><td class="mono" id="convStep">—</td></tr>
+                <tr><th>Plafonnement des salaires (4× PMSS)</th><td class="mono" id="capSalStep">—</td></tr>
+                <tr><th>Calcul du SJR</th><td class="mono" id="sjrStep">—</td></tr>
+                <tr><th>Formule 57 % du SJR</th><td class="mono" id="f57Step">—</td></tr>
+                <tr><th>Formule 40,4 % + part fixe</th><td class="mono" id="fAltStep">—</td></tr>
+                <tr><th>Allocation minimale</th><td class="mono" id="minStep">—</td></tr>
+                <tr><th>Plafond 75 % du SJR</th><td class="mono" id="capStep">—</td></tr>
+                <tr><th>Dégressivité (mois 7+)</th><td class="mono" id="degStep">—</td></tr>
+                <tr><th>CSG + CRDS (sur 98,25 %)</th><td class="mono" id="csgStep">—</td></tr>
+                <tr><th>Retraite complémentaire (3 % du SJR)</th><td class="mono" id="retraiteStep">—</td></tr>
+                <tr><th>Net journalier estimé</th><td class="mono" id="netDayStep">—</td></tr>
+                <tr><th>Net mensuel (30 j)</th><td class="mono" id="netMonthStep">—</td></tr>
+                <tr><th>Différés + carence</th><td class="mono" id="defStep">—</td></tr>
+              </tbody>
+            </table>
+          </details>
+
+          <p class="legal">
+            <strong>Estimation non officielle.</strong> Valeurs intégrées au <span class="pill">1ᵉʳ juil. 2025</span> : part fixe <strong>13,18 €</strong>, allocation minimale <strong>32,13 €</strong>, plancher de dégressivité <strong>92,57 €/j</strong>. France Travail appliquera ses propres arrondis, différés, contrôle de tes bulletins suisses (formulaire U1/PDU1) et le taux de change officiel. Le net affiché déduit la CSG/CRDS et la retraite complémentaire (3 % du SJR), mais <strong>pas l'impôt sur le revenu</strong> : l'ARE reste imposable.
+          </p>
+        </div>
+
+        <div class="actions">
+          <button class="btn-secondary" id="backStep1" type="button">← Modifier</button>
+          <button class="btn-primary" id="recalcBtn" type="button">Recalculer</button>
+        </div>
+      </div>
+
+      <!-- ================= ÉTAPE 3 : ARCE ================= -->
+      <div id="step3" class="hidden">
+        <div class="block">
+          <div class="sec-head">
+            <span class="num-badge">3</span>
+            <div>
+              <p class="kicker">Option création d'entreprise</p>
+              <h2 class="section-title">Et si tu touchais l'ARCE&nbsp;?</h2>
+              <p class="section-caption">L'ARCE convertit tes droits ARE restants en <strong>capital</strong> (60 %), versé en 2 fois, si tu crées ou reprends une entreprise. Basé sur ton allocation calculée à l'étape 2.</p>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="rightsDays">Jours de droits ARE restants</label>
+              <input id="rightsDays" type="number" step="1" inputmode="numeric" value="548">
+              <p class="field-help">Estimé selon ton âge (≈ 548 j si &lt; 55 ans). <strong>Le chiffre exact est sur ton espace France Travail.</strong></p>
+            </div>
+          </div>
+
+          <div class="kpi-stack" aria-live="polite" style="margin-top:18px;">
+            <div class="kpi hero">
+              <div class="kpi-label">🏦 Capital ARCE net (total)</div>
+              <div class="kpi-value" id="arceNetVal">—</div>
+              <div class="kpi-sub" id="arceNetSub">60 % de tes droits restants, − 3 % retraite.</div>
+            </div>
+            <div class="kpi net">
+              <div class="kpi-label">Versement 1 — à la création</div>
+              <div class="kpi-value" id="arceV1Val">—</div>
+              <div class="kpi-sub">50 % du capital</div>
+            </div>
+            <div class="kpi net">
+              <div class="kpi-label">Versement 2 — à 6 mois</div>
+              <div class="kpi-value" id="arceV2Val">—</div>
+              <div class="kpi-sub">50 %, si activité maintenue</div>
+            </div>
+          </div>
+
+          <div class="callout warn" id="arceCompare">
+            <span class="ico">⚖️</span>
+            <span id="arceCompareText"></span>
+          </div>
+
+          <details class="detail">
+            <summary><span>Voir le détail du calcul ARCE</span><span class="chev">⌄</span></summary>
+            <table>
+              <tbody>
+                <tr><th>ARE journalière brute</th><td class="mono" id="arceAreStep">—</td></tr>
+                <tr><th>Capital droits restants</th><td class="mono" id="arceCapStep">—</td></tr>
+                <tr><th>ARCE brute (60 %)</th><td class="mono" id="arceBrutStep">—</td></tr>
+                <tr><th>− Retraite complémentaire (3 %)</th><td class="mono" id="arceRetStep">—</td></tr>
+                <tr><th>ARCE nette</th><td class="mono" id="arceNetStep">—</td></tr>
+                <tr><th>Comparaison maintien ARE</th><td class="mono" id="arceMaintienStep">—</td></tr>
+              </tbody>
+            </table>
+          </details>
+
+          <p class="legal">
+            <strong>Estimation non officielle.</strong> ARCE = <span class="pill">60 %</span> du reliquat de droits, − 3 % retraite complémentaire, versée en 2 fois (50 % à la création, 50 % à 6 mois). L'ARCE est <strong>imposable sur le revenu</strong> et la CSG/CRDS peut aussi s'appliquer (à confirmer selon ta situation). Prérequis : obtenir l'ACRE auprès de l'URSSAF dans les 60 jours. En cas d'échec, les <strong>40 % non versés restent récupérables</strong> en te réinscrivant (dans les délais de déchéance). L'ARCE et le maintien mensuel de l'ARE ne sont pas cumulables.
+          </p>
+        </div>
+
+        <div class="actions">
+          <button class="btn-secondary" id="backStep2" type="button">← Résultats</button>
+          <button class="btn-primary" id="recalcArceBtn" type="button">Recalculer l'ARCE</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    /* ============================================================
+       DONNÉES
+       ============================================================ */
+    const monthsWrap = document.getElementById('months');
+    const initialMonths = [
+      4243.30,4673,4714.25,4886.90,4601.45,5032.75,4998.30,4807.85,5172.10,5128.30,5248.95,4779.95,
+      4317.25,4763.60,4799.25,4771.80,4758,4758,4758,4758,4758,4758,4758,4758
+    ];
+    // Taux de change réels CHF→EUR par mois (BCE, moyenne mensuelle, inversés depuis EUR→CHF).
+    // Jan. 2025 → Mai 2026 = réels ; Juin–Déc. 2026 = projetés sur le dernier connu (mai 2026).
+    const initialRates = [
+      1.0622,1.0624,1.0473,1.0672,1.0688,1.0661,1.0724,1.0653,1.0695,1.0765,1.0764,1.0716,
+      1.0785,1.0941,1.0996,1.0854,1.0930,1.0930,1.0930,1.0930,1.0930,1.0930,1.0930,1.0930
+    ];
+    const monthLabels = [
+      'Jan. 2025','Fév. 2025','Mars 2025','Avr. 2025','Mai 2025','Juin 2025','Juil. 2025','Août 2025','Sept. 2025','Oct. 2025','Nov. 2025','Déc. 2025',
+      'Jan. 2026','Fév. 2026','Mars 2026','Avr. 2026','Mai 2026','Juin 2026','Juil. 2026','Août 2026','Sept. 2026','Oct. 2026','Nov. 2026','Déc. 2026'
+    ];
+    const FIRST_FUTURE = 16; // Mai 2026 et après = valeurs projetées
+
+    /* ============================================================
+       PARAMÈTRES RÉGLEMENTAIRES (vérifiés au 1er juillet 2025)
+       ⚠️ Revalorisés chaque 1er juillet → à recontrôler.
+       ============================================================ */
+    const PARAMS = {
+      rate57: 0.57,            // 57 % du SJR
+      rateAlt: 0.404,          // 40,4 % du SJR
+      fixedPart: 13.18,        // part fixe (1er juil. 2025)
+      minAllowance: 32.13,     // allocation journalière minimale (1er juil. 2025)
+      capRatio: 0.75,          // plafond 75 % du SJR
+      csgBase: 0.9825,         // CSG/CRDS calculées sur 98,25 % (abattement 1,75 % frais de recherche d'emploi)
+      retraiteRate: 0.03,      // participation retraite complémentaire = 3 % du SJR
+      // Dégressivité (valeurs au 1er juil. 2025)
+      sjrThreshold: 162.40,    // déclencheur : SJR > 162,40 €/j (≈ 4 939,67 €/mois) ET < 55 ans
+      degFloor: 92.57,         // plancher : l'allocation réduite ne descend jamais sous ce montant
+      degMaxAge: 55,           // dégressivité réservée aux < 55 ans (fin de contrat ≥ 1er avril 2025)
+      degRate: 0.70,           // -30 %
+      // Plafonnement du salaire de référence : 4 × plafond mensuel SS
+      pass2026: 48060,         // PASS 2026 (à confirmer) → PMSS = /12
+      // Différés
+      specificDivisor: 111.8,  // diviseur différé spécifique 2026 (à confirmer)
+      specificCap: 150,        // plafond du différé spécifique (jours)
+      waitDays: 7              // délai d'attente
+    };
+
+    /* ============================================================
+       RENDU & FORMAT
+       ============================================================ */
+    function renderMonths(values){
+      monthsWrap.innerHTML = '';
+      values.forEach((val,i)=>{
+        const row = document.createElement('div');
+        const future = i >= FIRST_FUTURE;
+        row.className = 'month-row' + (future ? ' future' : '');
+        const rate = (initialRates[i] != null ? initialRates[i] : (document.getElementById('fx').value || '1.09'));
+        row.innerHTML =
+          `<span class="m-label">${monthLabels[i]}</span>`+
+          `<div class="m-inputs">`+
+            `<span class="m-cell"><input class="sal" id="m${i}" type="number" step="0.01" inputmode="decimal" value="${val}" aria-label="Salaire brut ${monthLabels[i]} en CHF"><span class="u">CHF</span></span>`+
+            `<span class="m-cell"><input class="fxm" id="fx${i}" type="number" step="0.0001" inputmode="decimal" value="${rate}" aria-label="Taux de change ${monthLabels[i]} euro par franc"><span class="u">€/CHF</span></span>`+
+          `</div>`;
+        monthsWrap.appendChild(row);
+      });
+      updateSummary();
+    }
+    const eur = n => new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:2}).format(n);
+    const chf = n => new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(n)+' CHF';
+    const num = n => new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(n);
+    const pct = n => new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2}).format(n)+' %';
+
+    // Lecture des salaires (CHF) et taux mensuels
+    function readMonths(){
+      const sal = Array.from(monthsWrap.querySelectorAll('input.sal')).map(i=>parseFloat(i.value||'0'));
+      const rates = Array.from(monthsWrap.querySelectorAll('input.fxm')).map(i=>parseFloat(i.value||'0'));
+      return { sal, rates };
+    }
+
+    // Bandeau récap en direct (total CHF, moyenne, conversion € mois par mois)
+    function updateSummary(){
+      const { sal, rates } = readMonths();
+      const total = sal.reduce((a,b)=>a+b,0);
+      const avg = sal.length ? total/sal.length : 0;
+      const totalEUR = sal.reduce((a,s,i)=>a + s*(rates[i]||0), 0);
+      document.getElementById('monthCount').textContent = sal.length;
+      document.getElementById('sumTotal').textContent = chf(total);
+      document.getElementById('sumAvg').textContent = chf(avg);
+      document.getElementById('sumEur').textContent = eur(totalEUR);
+    }
+    monthsWrap.addEventListener('input', updateSummary);
+
+    // Appliquer le taux par défaut à tous les mois
+    document.getElementById('applyFxBtn').addEventListener('click', ()=>{
+      const defFx = document.getElementById('fx').value || '1.04';
+      monthsWrap.querySelectorAll('input.fxm').forEach(i=> i.value = defFx);
+      updateSummary();
+    });
+
+    /* ============================================================
+       CALCUL
+       ============================================================ */
+    function calculate(){
+      const fx = parseFloat(document.getElementById('fx').value || '0');
+      const daysWorked = parseFloat(document.getElementById('daysWorked').value || '0');
+      const socialRate = parseFloat(document.getElementById('socialRate').value || '0') / 100;
+      const iccpCHF = parseFloat(document.getElementById('iccp').value || '0');
+      const supraCHF = parseFloat(document.getElementById('supra').value || '0');
+      const age = parseFloat(document.getElementById('age').value || '0');
+      const degOn = document.getElementById('degToggle').checked;
+      const endDate = document.getElementById('endDate').value;
+
+      // --- Conversion mois par mois (salaire × taux du mois) + plafonnement (4 × PMSS) ---
+      const capMensuelEUR = (PARAMS.pass2026 / 12) * 4;            // plafond mensuel du salaire de référence
+      const { sal: salariesCHF, rates: monthRates } = readMonths();
+      let cappedCount = 0;
+      const salariesEUR = salariesCHF.map((s,i)=>{
+        const e = s * (monthRates[i] || 0);                       // taux propre à chaque mois
+        if (e > capMensuelEUR){ cappedCount++; return capMensuelEUR; }
+        return e;
+      });
+      const totalCHF = salariesCHF.reduce((a,b)=>a+b,0);
+      const totalEUR = salariesEUR.reduce((a,b)=>a+b,0);
+      const avgRate = totalCHF > 0 ? totalEUR / totalCHF : 0;     // taux moyen effectif (info)
+
+      // --- SJR ---
+      const sjr = daysWorked > 0 ? totalEUR / daysWorked : 0;
+
+      // --- Allocation journalière brute (le plus favorable, borné) ---
+      const form57 = sjr * PARAMS.rate57;
+      const formAlt = sjr * PARAMS.rateAlt + PARAMS.fixedPart;
+      const cap75 = sjr * PARAMS.capRatio;
+      const best = Math.max(form57, formAlt);
+      let retained = Math.min(Math.max(best, PARAMS.minAllowance), cap75);
+
+      let retainedName = (best === form57) ? '57 % du SJR' : '40,4 % du SJR + part fixe';
+      if (retained === PARAMS.minAllowance && PARAMS.minAllowance > best) retainedName = 'allocation minimale réglementaire';
+      if (retained === cap75 && best > cap75) retainedName = 'plafond de 75 % du SJR';
+
+      // --- Dégressivité (mois 7+) : concernée si < 55 ans ET SJR > 162,40 €/j ---
+      let degApplies = false, degDaily = retained, degReason = '';
+      if (degOn){
+        if (age >= PARAMS.degMaxAge){
+          degReason = `Non applicable : tu as ${age} ans (réservé aux moins de ${PARAMS.degMaxAge} ans).`;
+        } else if (sjr <= PARAMS.sjrThreshold){
+          degReason = `Non concerné : ton SJR (${eur(sjr)}/j) ne dépasse pas le seuil de ${eur(PARAMS.sjrThreshold)}/j.`;
+        } else {
+          degApplies = true;
+          degDaily = Math.max(retained * PARAMS.degRate, PARAMS.degFloor);
+          degReason = `SJR > ${eur(PARAMS.sjrThreshold)} → dès le 7ᵉ mois, −30 % (de ${eur(retained)} à ${eur(degDaily)}/j, plancher ${eur(PARAMS.degFloor)}).`;
+        }
+      }
+
+      // --- Net : CSG/CRDS (sur 98,25 % de l'ARE) + retraite complémentaire (3 % du SJR) ---
+      // La retraite complémentaire ne peut pas réduire le net sous l'allocation minimale.
+      function nets(brut){
+        const csgCrds = brut * PARAMS.csgBase * socialRate;
+        let retraite = sjr * PARAMS.retraiteRate;
+        let net = brut - csgCrds - retraite;
+        if (net < PARAMS.minAllowance){
+          retraite = Math.max(0, brut - csgCrds - PARAMS.minAllowance);
+          net = brut - csgCrds - retraite;
+        }
+        return { net, csgCrds, retraite };
+      }
+      const N = nets(retained);
+      const netDaily = N.net, csgCrds = N.csgCrds, retraiteCompl = N.retraite;
+      const netMonthly = netDaily * 30;
+      const Ndeg = nets(degDaily);
+      const netDailyDeg = Ndeg.net;
+      const netMonthlyDeg = netDailyDeg * 30;
+
+      // --- Différés + carence ---
+      const iccpEUR = iccpCHF * fx;
+      const supraEUR = supraCHF * fx;
+      const differeCP = sjr > 0 ? Math.ceil(iccpEUR / sjr) : 0;
+      const differeSpe = Math.min(PARAMS.specificCap, Math.ceil(supraEUR / PARAMS.specificDivisor));
+      const totalCarence = differeCP + differeSpe + PARAMS.waitDays;
+
+      // --- Mémorisation pour la page ARCE ---
+      lastResults = { sjr, retained, netDaily, age };
+
+      /* ---------- AFFICHAGE KPI ---------- */
+      document.getElementById('monthlyNetVal').textContent = eur(netMonthly);
+      document.getElementById('monthlyDetailVal').textContent = `${eur(netDaily)} net/jour × 30 jours`;
+      document.getElementById('sjrVal').textContent = eur(sjr);
+      document.getElementById('refSalaryVal').textContent = `${eur(totalEUR)} sur ${num(daysWorked)} jours`;
+      document.getElementById('dailyGrossVal').textContent = eur(retained);
+      document.getElementById('formulaVal').textContent = `Retenu : ${retainedName}`;
+
+      /* ---------- CALLOUT dégressivité ---------- */
+      const degCallout = document.getElementById('degCallout');
+      if (degOn){
+        degCallout.classList.remove('hidden');
+        document.getElementById('degText').innerHTML = degApplies
+          ? `<strong>Dégressivité simulée.</strong> ${degReason} Net mensuel à partir du 7ᵉ mois ≈ <strong>${eur(netMonthlyDeg)}</strong> (au lieu de ${eur(netMonthly)}).`
+          : `<strong>Dégressivité non déclenchée.</strong> ${degReason}`;
+      } else {
+        degCallout.classList.add('hidden');
+      }
+
+      /* ---------- CALLOUT différés ---------- */
+      const defCallout = document.getElementById('defCallout');
+      if (iccpCHF > 0 || supraCHF > 0 || endDate){
+        defCallout.classList.remove('hidden');
+        let dateTxt = '';
+        if (endDate){
+          const d = new Date(endDate);
+          d.setDate(d.getDate() + 1 + totalCarence); // lendemain de la fin + différés
+          dateTxt = ` 1ᵉʳ versement estimé vers le <strong>${d.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</strong>.`;
+        }
+        document.getElementById('defText').innerHTML =
+          `<strong>Avant le 1ᵉʳ versement :</strong> ${differeCP} j (congés payés) + ${differeSpe} j (différé spécifique) + ${PARAMS.waitDays} j (délai d'attente) = <strong>${totalCarence} jours</strong> de report.${dateTxt}`;
+      } else {
+        defCallout.classList.add('hidden');
+      }
+
+      /* ---------- DÉTAIL ---------- */
+      document.getElementById('convStep').textContent = `Conversion mois par mois (taux moyen ${num(avgRate)}) → ${eur(totalEUR)}`;
+      document.getElementById('capSalStep').textContent = cappedCount > 0
+        ? `${cappedCount} mois plafonné(s) à ${eur(capMensuelEUR)} → base retenue ${eur(totalEUR)}`
+        : `Aucun mois au-dessus du plafond (${eur(capMensuelEUR)}/mois)`;
+      document.getElementById('sjrStep').textContent = `${eur(totalEUR)} / ${num(daysWorked)} j = ${eur(sjr)}`;
+      document.getElementById('f57Step').textContent = `0,57 × ${eur(sjr)} = ${eur(form57)}`;
+      document.getElementById('fAltStep').textContent = `0,404 × ${eur(sjr)} + ${eur(PARAMS.fixedPart)} = ${eur(formAlt)}`;
+      document.getElementById('minStep').textContent = `${eur(PARAMS.minAllowance)} / jour`;
+      document.getElementById('capStep').textContent = `0,75 × ${eur(sjr)} = ${eur(cap75)}`;
+      document.getElementById('degStep').textContent = degOn
+        ? (degApplies ? `${eur(retained)} → ${eur(degDaily)} /jour brut` : 'non déclenchée')
+        : 'non simulée';
+      document.getElementById('csgStep').textContent = `${eur(retained)} × 98,25 % × ${pct(socialRate*100)} = −${eur(csgCrds)}`;
+      document.getElementById('retraiteStep').textContent = `3 % × ${eur(sjr)} = −${eur(retraiteCompl)}`;
+      document.getElementById('netDayStep').textContent = `${eur(retained)} − ${eur(csgCrds)} − ${eur(retraiteCompl)} = ${eur(netDaily)}`;
+      document.getElementById('netMonthStep').textContent = `${eur(netDaily)} × 30 = ${eur(netMonthly)}`;
+      document.getElementById('defStep').textContent = `CP ${differeCP} j + spécifique ${differeSpe} j + attente ${PARAMS.waitDays} j = ${totalCarence} j`;
+    }
+
+    /* ============================================================
+       NAVIGATION + ARCE
+       ============================================================ */
+    const step1El = document.getElementById('step1');
+    const step2El = document.getElementById('step2');
+    const step3El = document.getElementById('step3');
+    const step1Label = document.getElementById('step1Label');
+    const step2Label = document.getElementById('step2Label');
+    const step3Label = document.getElementById('step3Label');
+
+    let lastResults = null;       // résultats du dernier calcul ARE (pour l'ARCE)
+    let joursTouched = false;     // l'utilisateur a-t-il modifié les jours de droits ?
+
+    function showStep(step){
+      step1El.classList.toggle('hidden', step !== 1);
+      step2El.classList.toggle('hidden', step !== 2);
+      step3El.classList.toggle('hidden', step !== 3);
+      // étapes franchies marquées "done"
+      step1Label.classList.toggle('done', step > 1);
+      step2Label.classList.toggle('done', step > 2);
+      [ [step1Label,1],[step2Label,2],[step3Label,3] ].forEach(([el,n])=>
+        el.setAttribute('aria-current', n === step ? 'step' : 'false'));
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    // Durée maximale estimée des droits selon l'âge (depuis 1er avril 2025)
+    function estimDuree(age){
+      if (age >= 57) return 822;   // 27 mois
+      if (age >= 55) return 685;   // 22,5 mois
+      return 548;                  // 18 mois (< 55 ans)
+    }
+
+    function renderArce(){
+      if (!lastResults) calculate();
+      const areJ = lastResults.retained;     // ARE journalière brute
+      const netJ = lastResults.netDaily;     // ARE journalière nette
+      const jours = parseFloat(document.getElementById('rightsDays').value || '0');
+
+      const capital = areJ * jours;          // capital des droits restants (brut)
+      const arceBrut = capital * 0.60;       // ARCE = 60 % du reliquat
+      const retraite = arceBrut * PARAMS.retraiteRate; // − 3 % retraite complémentaire
+      const arceNet = arceBrut - retraite;
+      const v1 = arceNet / 2, v2 = arceNet / 2;
+      const maintienNet = netJ * jours;      // total net si on garde l'ARE mensuelle jusqu'au bout
+
+      document.getElementById('arceNetVal').textContent = eur(arceNet);
+      document.getElementById('arceNetSub').textContent = `60 % de ${eur(capital)} de droits restants, − 3 % retraite`;
+      document.getElementById('arceV1Val').textContent = eur(v1);
+      document.getElementById('arceV2Val').textContent = eur(v2);
+
+      document.getElementById('arceCompareText').innerHTML =
+        `<strong>ARCE vs maintien de l'ARE.</strong> En capital tu touches <strong>${eur(arceNet)}</strong> (acquis, même si tu retravailles). En gardant l'ARE mensuelle, tu toucherais jusqu'à <strong>${eur(maintienNet)}</strong> net étalés sur ~${Math.round(jours/30)} mois — mais ce versement s'arrête si tu reprends un emploi à plein temps. L'ARCE convertit donc ~60 % de tes droits en trésorerie immédiate.`;
+
+      document.getElementById('arceAreStep').textContent = `${eur(areJ)} / jour`;
+      document.getElementById('arceCapStep').textContent = `${eur(areJ)} × ${num(jours)} j = ${eur(capital)}`;
+      document.getElementById('arceBrutStep').textContent = `60 % × ${eur(capital)} = ${eur(arceBrut)}`;
+      document.getElementById('arceRetStep').textContent = `3 % × ${eur(arceBrut)} = −${eur(retraite)}`;
+      document.getElementById('arceNetStep').textContent = `${eur(arceNet)}  (2 × ${eur(v1)})`;
+      document.getElementById('arceMaintienStep').textContent = `${eur(netJ)} net/j × ${num(jours)} j = ${eur(maintienNet)}`;
+    }
+
+    function goArce(){
+      calculate();
+      // pré-remplir les jours de droits selon l'âge tant que l'utilisateur n'y a pas touché
+      if (!joursTouched){
+        document.getElementById('rightsDays').value = estimDuree(lastResults.age);
+      }
+      renderArce();
+      showStep(3);
+    }
+
+    document.getElementById('rightsDays').addEventListener('input', ()=>{ joursTouched = true; renderArce(); });
+
+    document.getElementById('toStep2').addEventListener('click', ()=>{ calculate(); showStep(2); });
+    document.getElementById('backStep1').addEventListener('click', ()=> showStep(1));
+    document.getElementById('backStep2').addEventListener('click', ()=> showStep(2));
+    document.getElementById('recalcBtn').addEventListener('click', calculate);
+    document.getElementById('recalcArceBtn').addEventListener('click', goArce);
+
+    // Onglets du stepper cliquables
+    step1Label.addEventListener('click', ()=> showStep(1));
+    step2Label.addEventListener('click', ()=>{ calculate(); showStep(2); });
+    step3Label.addEventListener('click', goArce);
+
+    document.getElementById('resetBtn').addEventListener('click', ()=>{
+      document.getElementById('fx').value = '1.0930';
+      document.getElementById('daysWorked').value = '731';
+      document.getElementById('socialRate').value = '6.7';
+      document.getElementById('iccp').value = '0';
+      document.getElementById('supra').value = '0';
+      document.getElementById('age').value = '40';
+      document.getElementById('degToggle').checked = false;
+      document.getElementById('endDate').value = '';
+      document.getElementById('rightsDays').value = '548';
+      joursTouched = false;
+      renderMonths(initialMonths);   // réinitialise salaires ET taux mensuels
+    });
+
+    renderMonths(initialMonths);
+  </script>
+</body>
+</html>
